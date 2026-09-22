@@ -12,17 +12,9 @@ const nameEl=document.querySelector('#name'),dateEl=document.querySelector('#dat
 let couponFont="KoPubBatang,serif",fontObjectUrl=null;
 const slots=[{x:300,y:665},{x:660,y:665},{x:1020,y:665},{x:1380,y:665},{x:1740,y:665},{x:300,y:920},{x:660,y:920},{x:1020,y:920},{x:1380,y:920},{x:1740,y:920}];
 let marked=Array(10).fill(false);
-const defaultPositions={title:{x:1024,y:165},name:{x:190,y:390},date:{x:1120,y:390},stamps:{x:1020,y:792.5}};
+const defaultPositions={title:{x:1024,y:165},name:{x:190,y:390},date:{x:1315,y:390},stamps:{x:1020,y:792.5}};
 let positions=JSON.parse(JSON.stringify(defaultPositions));
 let dragging=null,selectedElement=null,dragOffset={x:0,y:0},suppressClick=false,positionsLocked=false;
-let undoStack=[],redoStack=[],historyApplying=false,historyTimer=null;
-function snapshotState(){return JSON.stringify({positions,slots,marked,couponName:couponNameEl.value,benefit1:benefit1El.value,benefit2:benefit2El.value,name:nameEl.value,date:dateEl.value,lineColor:lineColorEl.value,showTitleLine:showTitleLineEl.checked,titleColor:titleColorEl.value,bodyColor:bodyColorEl.value,guideStyle:guideStyleEl.value,guideColor:guideColorEl.value,stampStyle:stampStyleEl.value,bgSrc:bgReady?bg.src:'',stampSrcCurrent:stampReady?stamp.src:'',positionsLocked});}
-function recordHistory(){if(historyApplying)return;const state=snapshotState();if(undoStack[undoStack.length-1]!==state){undoStack.push(state);if(undoStack.length>100)undoStack.shift();redoStack=[];}}
-function scheduleHistory(){clearTimeout(historyTimer);historyTimer=setTimeout(recordHistory,120);}
-function applyHistoryState(state){historyApplying=true;const v=JSON.parse(state);positions=JSON.parse(JSON.stringify(v.positions));slots.forEach((p,i)=>{p.x=v.slots[i].x;p.y=v.slots[i].y});marked=v.marked.slice();couponNameEl.value=v.couponName;benefit1El.value=v.benefit1;benefit2El.value=v.benefit2;nameEl.value=v.name;dateEl.value=v.date;lineColorEl.value=v.lineColor;showTitleLineEl.checked=v.showTitleLine;titleColorEl.value=v.titleColor;bodyColorEl.value=v.bodyColor;guideStyleEl.value=v.guideStyle;guideColorEl.value=v.guideColor;stampStyleEl.value=v.stampStyle;positionsLocked=!!v.positionsLocked;positionLockBtn.classList.toggle('active',positionsLocked);positionLockBtn.textContent=positionsLocked?'위치 잠금 해제':'위치 잠금';selectedElement=null;dragging=null;let waits=0;const finish=()=>{historyApplying=false;draw()};const done=()=>{waits--;if(waits===0)finish()};if(v.bgSrc){waits++;bg.onload=()=>{bgReady=true;done()};bg.src=v.bgSrc}else{bgReady=false;bg.src=''}if(v.stampSrcCurrent){waits++;stamp.onload=()=>{stampReady=true;done()};stamp.src=v.stampSrcCurrent}else{stampReady=false;stamp.src=''}if(waits===0)finish();}
-function undo(){clearTimeout(historyTimer);recordHistory();if(undoStack.length<2)return;redoStack.push(undoStack.pop());applyHistoryState(undoStack[undoStack.length-1]);}
-function redo(){clearTimeout(historyTimer);if(!redoStack.length)return;const next=redoStack.pop();undoStack.push(next);applyHistoryState(next);}
-document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(k==='y'){e.preventDefault();redo()}});
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);dateEl.value=today();
 stamp.onload=()=>{stampReady=true;draw()};stamp.src=stampSrc;
 function fittedText(text,maxWidth,startSize,weight=700){let size=startSize;ctx.font=`${weight} ${size}px ${couponFont}`;while(size>28&&ctx.measureText(text).width>maxWidth){size-=2;ctx.font=`${weight} ${size}px ${couponFont}`} return size}
@@ -39,7 +31,7 @@ function drawCover(img){const cw=canvas.width,ch=canvas.height,ir=img.width/img.
  }
  ctx.restore();
 }
-function benefitText(text,x,y){if(!text)return;ctx.save();ctx.fillStyle=bodyColorEl.value;ctx.textAlign='center';ctx.textBaseline='middle';let chars=[...text],lines=chars.length>5?[chars.slice(0,Math.ceil(chars.length/2)).join(''),chars.slice(Math.ceil(chars.length/2)).join('')]:[text];let size=52;ctx.font=`700 ${size}px ${couponFont}`;while(size>32&&Math.max(...lines.map(v=>ctx.measureText(v).width))>220){size-=2;ctx.font=`700 ${size}px ${couponFont}`} lines.forEach((line,i)=>ctx.fillText(line,x,y+(i-(lines.length-1)/2)*(size+7)));ctx.restore()}
+function benefitText(text,x,y){if(!text)return;ctx.save();ctx.fillStyle=bodyColorEl.value;ctx.textAlign='center';ctx.textBaseline='middle';let chars=[...text],lines=chars.length>3?[chars.slice(0,Math.ceil(chars.length/2)).join(''),chars.slice(Math.ceil(chars.length/2)).join('')]:[text];let size=52;ctx.font=`700 ${size}px ${couponFont}`;while(size>32&&Math.max(...lines.map(v=>ctx.measureText(v).width))>220){size-=2;ctx.font=`700 ${size}px ${couponFont}`} lines.forEach((line,i)=>ctx.fillText(line,x,y+(i-(lines.length-1)/2)*(size+7)));ctx.restore()}
 function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
  if(bgReady) drawCover(bg); else {ctx.fillStyle='#f8fbfa';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.save();ctx.fillStyle='rgba(16,94,88,.06)';for(let y=0;y<canvas.height;y+=64)for(let x=0;x<canvas.width;x+=64)if((x/64+y/64)%2===0)ctx.fillRect(x,y,64,64);ctx.restore()}
@@ -48,7 +40,10 @@ function draw(){
  ctx.textAlign='start';ctx.textBaseline='middle';ctx.font=`400 48px ${couponFont}`;ctx.fillStyle=bodyColorEl.value;
  const nameText=nameEl.value.trim()||'이름을 입력해주세요',dateText=formatDate(dateEl.value)||'날짜를 입력해주세요';
  ctx.fillText('신청인',positions.name.x,positions.name.y);ctx.fillText(nameText,positions.name.x+200,positions.name.y);
- ctx.fillText('발행일자',positions.date.x,positions.date.y);ctx.fillText(dateText,positions.date.x+270,positions.date.y);
+ const dateGap=72,dateWidth=ctx.measureText(dateText).width,labelWidth=ctx.measureText('발행일자').width;
+ ctx.textAlign='start';
+ ctx.fillText('발행일자',positions.date.x,positions.date.y);
+ ctx.fillText(dateText,positions.date.x+labelWidth+dateGap,positions.date.y);
  const guide=guideStyleEl.value;ctx.save();ctx.strokeStyle=guideColorEl.value;ctx.globalAlpha=.55;ctx.lineWidth=4;ctx.setLineDash([16,14]);slots.forEach((p,i)=>{if(guide==='circle'){ctx.beginPath();ctx.arc(p.x,p.y,118,0,Math.PI*2);ctx.stroke()}else if(guide==='square'){ctx.strokeRect(p.x-118,p.y-118,236,236)}});ctx.restore();
  benefitText(benefit1El.value.trim(),slots[4].x,slots[4].y);benefitText(benefit2El.value.trim(),slots[9].x,slots[9].y);
  if(stampReady)marked.forEach((on,i)=>{if(on){const sz=235;ctx.globalAlpha=.96;drawStamp(stamp,slots[i].x,slots[i].y,sz,stampStyleEl.value);ctx.globalAlpha=1}});
@@ -56,20 +51,20 @@ function draw(){
  stampCount.value=marked.filter(Boolean).length;
 }
 function setCount(n){n=Math.max(0,Math.min(10,Number(n)||0));marked=marked.map((_,i)=>i<n);draw()}
-[nameEl,dateEl,couponNameEl,benefit1El,benefit2El,lineColorEl,titleColorEl,bodyColorEl,guideStyleEl,guideColorEl,stampStyleEl,showTitleLineEl].forEach(el=>el.addEventListener('input',()=>{draw();scheduleHistory()}));stampCount.addEventListener('input',e=>{setCount(e.target.value);scheduleHistory()});
-function loadImageFile(input,target,isBg){const file=input.files&&input.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{target.onload=()=>{if(isBg)bgReady=true;else stampReady=true;draw();recordHistory()};target.src=reader.result};reader.readAsDataURL(file)}
+[nameEl,dateEl,couponNameEl,benefit1El,benefit2El,lineColorEl,titleColorEl,bodyColorEl,guideStyleEl,guideColorEl,stampStyleEl,showTitleLineEl].forEach(el=>el.addEventListener('input',draw));stampCount.addEventListener('input',e=>setCount(e.target.value));
+function loadImageFile(input,target,isBg){const file=input.files&&input.files[0];if(!file)return;const url=URL.createObjectURL(file);target.onload=()=>{if(isBg)bgReady=true;else stampReady=true;draw();URL.revokeObjectURL(url)};target.src=url}
 bgUpload.addEventListener('change',()=>loadImageFile(bgUpload,bg,true));stampUpload.addEventListener('change',()=>loadImageFile(stampUpload,stamp,false));
 fontUpload.addEventListener('change',async()=>{const file=fontUpload.files&&fontUpload.files[0];if(!file)return;if(fontObjectUrl)URL.revokeObjectURL(fontObjectUrl);fontObjectUrl=URL.createObjectURL(file);try{const face=new FontFace('CouponCustomFont',`url(${fontObjectUrl})`);await face.load();document.fonts.add(face);couponFont="'CouponCustomFont', KoPubBatang, serif";draw()}catch(e){alert('TTF 폰트를 불러오지 못했어. 다른 TTF 파일을 사용해줘.');fontUpload.value=''}});
-document.querySelector('#minus').onclick=()=>{setCount(marked.filter(Boolean).length-1);recordHistory()};document.querySelector('#plus').onclick=()=>{setCount(marked.filter(Boolean).length+1);recordHistory()};
+document.querySelector('#minus').onclick=()=>setCount(marked.filter(Boolean).length-1);document.querySelector('#plus').onclick=()=>setCount(marked.filter(Boolean).length+1);
 const resetBackgroundBtn=document.querySelector('#resetBackground'),resetStampBtn=document.querySelector('#resetStamp'),resetPositionsBtn=document.querySelector('#resetPositions'),positionLockBtn=document.querySelector('#togglePositionLock');
-resetBackgroundBtn.onclick=()=>{bgUpload.value='';bg.src='';bgReady=false;draw();recordHistory()};
-resetStampBtn.onclick=()=>{stampUpload.value='';stampReady=false;stamp.onload=()=>{stampReady=true;draw();recordHistory()};stamp.src=stampSrc;draw()};
+resetBackgroundBtn.onclick=()=>{bgUpload.value='';bg.src='';bgReady=false;draw()};
+resetStampBtn.onclick=()=>{stampUpload.value='';stampReady=false;stamp.onload=()=>{stampReady=true;draw()};stamp.src=stampSrc;draw()};
 function resetPositionsOnly(){positions=JSON.parse(JSON.stringify(defaultPositions));const resetSlots=[{x:300,y:665},{x:660,y:665},{x:1020,y:665},{x:1380,y:665},{x:1740,y:665},{x:300,y:920},{x:660,y:920},{x:1020,y:920},{x:1380,y:920},{x:1740,y:920}];slots.forEach((p,i)=>{p.x=resetSlots[i].x;p.y=resetSlots[i].y});selectedElement=null;dragging=null;draw()}
-resetPositionsBtn.onclick=()=>{resetPositionsOnly();recordHistory()};
-positionLockBtn.onclick=()=>{positionsLocked=!positionsLocked;selectedElement=null;dragging=null;positionLockBtn.classList.toggle('active',positionsLocked);positionLockBtn.textContent=positionsLocked?'위치 잠금 해제':'위치 잠금';canvas.style.cursor=positionsLocked?'pointer':'pointer';draw();recordHistory()};
+resetPositionsBtn.onclick=resetPositionsOnly;
+positionLockBtn.onclick=()=>{positionsLocked=!positionsLocked;selectedElement=null;dragging=null;positionLockBtn.classList.toggle('active',positionsLocked);positionLockBtn.textContent=positionsLocked?'위치 잠금 해제':'위치 잠금';canvas.style.cursor=positionsLocked?'pointer':'pointer';draw()};
 document.querySelector('#resetSettings').onclick=()=>{couponNameEl.value='대학원생 글커미션';benefit1El.value='5자 이내';benefit2El.value='5자 이내';nameEl.value='';dateEl.value=today();lineColorEl.value='#105e58';showTitleLineEl.checked=true;titleColorEl.value='#105e58';bodyColorEl.value='#105e58';guideStyleEl.value='circle';guideColorEl.value='#105e58';stampStyleEl.value='original';bgUpload.value='';stampUpload.value='';fontUpload.value='';couponFont='KoPubBatang,serif';if(fontObjectUrl){URL.revokeObjectURL(fontObjectUrl);fontObjectUrl=null}bgReady=false;stamp.src=stampSrc;marked=Array(10).fill(false);positions=JSON.parse(JSON.stringify(defaultPositions));
 const resetSlots=[{x:300,y:665},{x:660,y:665},{x:1020,y:665},{x:1380,y:665},{x:1740,y:665},{x:300,y:920},{x:660,y:920},{x:1020,y:920},{x:1380,y:920},{x:1740,y:920}];
-slots.forEach((p,i)=>{p.x=resetSlots[i].x;p.y=resetSlots[i].y});selectedElement=null;draw();recordHistory()};
+slots.forEach((p,i)=>{p.x=resetSlots[i].x;p.y=resetSlots[i].y});selectedElement=null;draw()};
 function canvasPoint(e){
  const r=canvas.getBoundingClientRect();
  return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};
@@ -85,8 +80,9 @@ function elementAt(x,y){
  if(x>=positions.name.x-25&&x<=positions.name.x+nw+30&&y>=positions.name.y-55&&y<=positions.name.y+55)return 'name';
  // 발행일자/날짜 묶음
  ctx.save();ctx.font=`400 48px ${couponFont}`;
- const dw=270+ctx.measureText(formatDate(dateEl.value)||'날짜를 입력해주세요').width;ctx.restore();
- if(x>=positions.date.x-25&&x<=positions.date.x+dw+30&&y>=positions.date.y-55&&y<=positions.date.y+55)return 'date';
+ const dateHitText=formatDate(dateEl.value)||'날짜를 입력해주세요',dateHitWidth=ctx.measureText(dateHitText).width,labelHitWidth=ctx.measureText('발행일자').width,dateHitGap=72;
+ const dateRight=positions.date.x+labelHitWidth+dateHitGap+dateHitWidth;ctx.restore();
+ if(x>=positions.date.x-25&&x<=dateRight+25&&y>=positions.date.y-55&&y<=positions.date.y+55)return 'date';
  // 도장 영역: 각 원 내부는 도장 찍기/지우기를 위해 제외하고, 원 바깥 여백만 이동 영역으로 사용
  const inStampArea=x>=145&&x<=1895&&y>=520&&y<=1065;
  const inStampCircle=slots.some(slot=>Math.hypot(x-slot.x,y-slot.y)<135);
@@ -109,8 +105,9 @@ function selectionBounds(key){
   const w=200+ctx.measureText(nameEl.value.trim()||'이름을 입력해주세요').width+55;ctx.restore();
   return {x:positions.name.x-28,y:positions.name.y-58,w,h:116};
  }
- const w=270+ctx.measureText(formatDate(dateEl.value)||'날짜를 입력해주세요').width+55;ctx.restore();
- return {x:positions.date.x-28,y:positions.date.y-58,w,h:116};
+ const dateSelText=formatDate(dateEl.value)||'날짜를 입력해주세요',dateSelWidth=ctx.measureText(dateSelText).width,labelSelWidth=ctx.measureText('발행일자').width,dateSelGap=72;
+ const w=dateSelWidth+dateSelGap+labelSelWidth+55,left=positions.date.x-28;ctx.restore();
+ return {x:left,y:positions.date.y-58,w,h:116};
 }
 function drawSelectionBox(key){
  const b=selectionBounds(key);
@@ -151,7 +148,6 @@ function endDrag(e){
  dragging=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch(_){}
  const p=canvasPoint(e);canvas.style.cursor=elementAt(p.x,p.y)?'grab':'pointer';
- if(suppressClick)recordHistory();
 }
 canvas.addEventListener('pointerup',endDrag);
 canvas.addEventListener('pointercancel',endDrag);
@@ -163,7 +159,7 @@ canvas.addEventListener('click',e=>{
  if(!positionsLocked&&elementAt(p.x,p.y))return;
  if(selectedElement){selectedElement=null;draw()}
  let best=-1,dist=Infinity;slots.forEach((slot,i)=>{const d=Math.hypot(p.x-slot.x,p.y-slot.y);if(d<dist){dist=d;best=i}});
- if(best>=0&&dist<135){marked[best]=!marked[best];draw();recordHistory()}
+ if(best>=0&&dist<135){marked[best]=!marked[best];draw()}
 });
 
 canvas.addEventListener('keydown',e=>{
@@ -186,8 +182,8 @@ canvas.addEventListener('keydown',e=>{
   p.x=Math.max(40,Math.min(canvas.width-40,p.x+dx));
   p.y=Math.max(70,Math.min(canvas.height-50,p.y+dy));
  }
- draw();scheduleHistory();
+ draw();
 });
 function save(type){const prev=selectedElement;selectedElement=null;draw();const ext=type==='image/png'?'png':'jpg',a=document.createElement('a');a.download=`커미션_쿠폰_${nameEl.value.trim()||'발행본'}.${ext}`;a.href=canvas.toDataURL(type,type==='image/jpeg'?.95:undefined);a.click();selectedElement=prev;draw()}
-document.querySelector('#downloadPng').onclick=()=>save('image/png');document.querySelector('#downloadJpg').onclick=()=>save('image/jpeg');draw();setTimeout(recordHistory,0);
+document.querySelector('#downloadPng').onclick=()=>save('image/png');document.querySelector('#downloadJpg').onclick=()=>save('image/jpeg');draw();
 </script></body></html>
